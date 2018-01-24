@@ -132,30 +132,30 @@ private:
 	CompilerInstance *CI;
 
 	std::unordered_map<std::string, unsigned> printf_functions = {
-		{"ngx_log_error_core",	3},
-		{"ngx_sprintf",		1},
-		{"ngx_snprintf",	2},
+		{"nxt_log_s::handler",	2},
+		{"nxt_sprintf",		2},
 	};
 
 	std::unordered_map<char, arg_handler_t> arg_handlers = {
 		{'A',			ngx_atomic_arg_handler	},
+		{'b',			ngx_int_arg_handler	},
 		{'c',			char_arg_handler	},
 		{'D',			int32_arg_handler	},
 		{'d',			int_arg_handler		},
+		{'E',                   ngx_err_arg_handler     },
 		{'f',			double_arg_handler	},
 		{'i',			ngx_int_arg_handler	},
 		{'L',			int64_arg_handler	},
 		{'l',			long_arg_handler	},
-		{'M',			ngx_int_arg_handler	},
-		{'N',			(arg_handler_t)nullptr	},
+		{'M',			ngx_msec_arg_handler	},
+		{'N',			ngx_nsec_arg_handler	},
+		{'n',			(arg_handler_t)nullptr	},
 		{'O',			offt_arg_handler	},
-		{'P',			pid_arg_handler		},
 		{'p',			pointer_arg_handler	},
 		{'r',			rlim_arg_handler	},
 		{'s',			cstring_arg_handler	},
 		{'T',			time_arg_handler	},
 		{'V',			ngx_str_arg_handler	},
-		{'v',			ngx_vv_arg_handler	},
 		{'Z',			(arg_handler_t)nullptr	},
 		{'z',			size_arg_handler	},
 	};
@@ -164,6 +164,31 @@ private:
 	parseFlags(const std::string &flags, const Expr *e)
 	{
 		const char type = flags.back();
+		if (flags == "FD") {
+			return llvm::make_unique<PrintfArgChecker>(
+				int_arg_handler,
+				this->Context, this->CI);
+		}
+		if (flags == "FN") {
+			return llvm::make_unique<PrintfArgChecker>(
+				nxt_file_name_arg_handler,
+				this->Context, this->CI);
+		}
+		if (flags == "PI" || flags == "PT") {
+			return llvm::make_unique<PrintfArgChecker>(
+				pid_arg_handler,
+				this->Context, this->CI);
+		}
+		if (flags == "PF") {
+			return llvm::make_unique<PrintfArgChecker>(
+				nxt_fid_arg_handler,
+				this->Context, this->CI);
+		}
+		if (flags == "PH") {
+			return llvm::make_unique<PrintfArgChecker>(
+				pthread_arg_handler,
+				this->Context, this->CI);
+		}
 
 		if (arg_handlers.find(type) == arg_handlers.end()) {
 			print_error(std::string("unknown format: ") + type,
@@ -330,10 +355,20 @@ private:
 	static bool
 	ngx_atomic_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
 	{
-		return check_builtin_type(arg, ctx,
-			{BuiltinType::Kind::ULong,
-			 BuiltinType::Kind::Long},
-			"%A");
+		if (sizeof(long) == sizeof(int64_t)) {
+			return check_builtin_type(arg, ctx,
+				{BuiltinType::Kind::Long,
+				 BuiltinType::Kind::ULong},
+				"%A");
+
+		} else if (sizeof(long) == sizeof(int32_t)) {
+			return check_builtin_type(arg, ctx,
+				{BuiltinType::Kind::Int,
+				 BuiltinType::Kind::UInt},
+				"%A");
+		}
+
+		assert(0);
 	}
 
 	static bool
@@ -370,7 +405,15 @@ private:
 		return check_builtin_type(arg, ctx,
 			{BuiltinType::Kind::UInt,
 			 BuiltinType::Kind::Int},
-			"%d");
+			"%d or %FD");
+	}
+
+	static bool
+	ngx_err_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
+	{
+		return check_builtin_type(arg, ctx,
+			{BuiltinType::Kind::Int},
+			"%E");
 	}
 
 	static bool
@@ -384,20 +427,10 @@ private:
 	static bool
 	ngx_int_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
 	{
-		if (sizeof(intptr_t) == sizeof(int64_t)) {
-			return check_builtin_type(arg, ctx,
-				{BuiltinType::Kind::ULong,
-				 BuiltinType::Kind::Long},
-				"%i or %M");
-
-		} else if (sizeof(intptr_t) == sizeof(int32_t)) {
-			return check_builtin_type(arg, ctx,
-				{BuiltinType::Kind::UInt,
-				 BuiltinType::Kind::Int},
-				"%i or %M");
-		}
-
-		assert(0);
+		return check_builtin_type(arg, ctx,
+			{BuiltinType::Kind::UInt,
+			 BuiltinType::Kind::Int},
+			"%i or %b");
 	}
 
 	static bool
@@ -427,6 +460,31 @@ private:
 	}
 
 	static bool
+	ngx_msec_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
+	{
+		return check_builtin_type(arg, ctx,
+			{BuiltinType::Kind::UInt},
+			"%M");
+	}
+
+	static bool
+	ngx_nsec_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
+	{
+		if (sizeof(int64_t) == sizeof(long)) {
+			return check_builtin_type(arg, ctx,
+				{BuiltinType::Kind::ULong},
+				"%N");
+
+		} else if (sizeof(int64_t) == sizeof(long long)) {
+			return check_builtin_type(arg, ctx,
+				{BuiltinType::Kind::ULongLong},
+				"%N");
+		}
+
+		assert(0);
+	}
+
+	static bool
 	offt_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
 	{
 		if (sizeof(long) == sizeof(int64_t)) {
@@ -449,7 +507,7 @@ private:
 		return check_builtin_type(arg, ctx,
 			{BuiltinType::Kind::UInt,
 			 BuiltinType::Kind::Int},
-			"%P");
+			"%PI or %PT");
 	}
 
 	static bool
@@ -458,6 +516,9 @@ private:
 		const Type *type = arg->getType().split().Ty;
 
 		if (type->isPointerType())
+			return true;
+
+		if (arg->getType().getAsString()== "uintptr_t")
 			return true;
 
 		print_error(std::string("bad pointer argument for %p: ") +
@@ -532,17 +593,9 @@ private:
 	ngx_str_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
 	{
 		return check_struct_type(arg, ctx,
-			{"ngx_str_t *",
-			 "volatile ngx_str_t *"},
+			{"nxt_str_t *",
+			 "const nxt_str_t *"},
 			"%V");
-	}
-
-	static bool
-	ngx_vv_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
-	{
-		return check_struct_type(arg, ctx,
-			{"ngx_variable_value_t *"},
-			"%v");
 	}
 
 	static bool
@@ -578,6 +631,48 @@ private:
 				{BuiltinType::Kind::UInt,
 				 BuiltinType::Kind::Int},
 				"%*s width");
+		}
+
+		assert(0);
+	}
+
+	static bool
+	pthread_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
+	{
+		return check_builtin_type(arg, ctx,
+			// unsigned long int on linux
+			{BuiltinType::Kind::ULong},
+			"%PH");
+	}
+
+	static bool
+	nxt_file_name_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
+	{
+		std::string str = arg->getType().getAsString();
+
+		if (str == "nxt_file_name_t *")
+			return true;
+
+		print_error(std::string("bad argument for ")
+			+ "%FN" + " arg: " + str,
+			arg, ctx->pci);
+		return false;
+	}
+
+	static bool
+	nxt_fid_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
+	{
+		std::vector<BuiltinType::Kind> v;
+
+		if (sizeof(int32_t) == sizeof(long)) {
+			return check_builtin_type(arg, ctx,
+				{BuiltinType::Kind::ULong},
+				"%PF");
+
+		} else if (sizeof(int32_t) == sizeof(int)) {
+			return check_builtin_type(arg, ctx,
+				{BuiltinType::Kind::UInt},
+				"%PF");
 		}
 
 		assert(0);
