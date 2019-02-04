@@ -93,6 +93,12 @@ public:
 		if (!arg->EvaluateAsRValue(r, *Context))
 			return false;
 
+		// njs_error_fmt_new permits NULL fmt
+		const APValue::LValueBase base =
+			r.Val.getLValueBase().get<const Expr *>();
+		if (!base)
+			return false;
+
 		const StringLiteral *qval = dyn_cast<StringLiteral>(
 			r.Val.getLValueBase().get<const Expr *>());
 		if (!qval)
@@ -132,13 +138,14 @@ private:
 	CompilerInstance *CI;
 
 	std::unordered_map<std::string, unsigned> printf_functions = {
-		{"ngx_log_error_core",	3},
-		{"ngx_sprintf",		1},
-		{"ngx_snprintf",	2},
+		{"nxt_sprintf",		2},
+		{"njs_error_fmt_new",	2},
+		{"njs_parser_error",	3},
+		{"njs_generate_syntax_error", 2},
 	};
 
 	std::unordered_map<char, arg_handler_t> arg_handlers = {
-		{'A',			ngx_atomic_arg_handler	},
+		{'b',			ngx_int_arg_handler	},
 		{'c',			char_arg_handler	},
 		{'D',			int32_arg_handler	},
 		{'d',			int_arg_handler		},
@@ -146,16 +153,12 @@ private:
 		{'i',			ngx_int_arg_handler	},
 		{'L',			int64_arg_handler	},
 		{'l',			long_arg_handler	},
-		{'M',			ngx_int_arg_handler	},
-		{'N',			(arg_handler_t)nullptr	},
+		{'n',			(arg_handler_t)nullptr	},
 		{'O',			offt_arg_handler	},
-		{'P',			pid_arg_handler		},
 		{'p',			pointer_arg_handler	},
-		{'r',			rlim_arg_handler	},
 		{'s',			cstring_arg_handler	},
 		{'T',			time_arg_handler	},
 		{'V',			ngx_str_arg_handler	},
-		{'v',			ngx_vv_arg_handler	},
 		{'Z',			(arg_handler_t)nullptr	},
 		{'z',			size_arg_handler	},
 	};
@@ -328,15 +331,6 @@ private:
 
 	/* Type handlers */
 	static bool
-	ngx_atomic_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
-	{
-		return check_builtin_type(arg, ctx,
-			{BuiltinType::Kind::ULong,
-			 BuiltinType::Kind::Long},
-			"%A");
-	}
-
-	static bool
 	char_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
 	{
 		return check_builtin_type(arg, ctx,
@@ -384,20 +378,10 @@ private:
 	static bool
 	ngx_int_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
 	{
-		if (sizeof(intptr_t) == sizeof(int64_t)) {
-			return check_builtin_type(arg, ctx,
-				{BuiltinType::Kind::ULong,
-				 BuiltinType::Kind::Long},
-				"%i or %M");
-
-		} else if (sizeof(intptr_t) == sizeof(int32_t)) {
-			return check_builtin_type(arg, ctx,
-				{BuiltinType::Kind::UInt,
-				 BuiltinType::Kind::Int},
-				"%i or %M");
-		}
-
-		assert(0);
+		return check_builtin_type(arg, ctx,
+			{BuiltinType::Kind::UInt,
+			 BuiltinType::Kind::Int},
+			"%i or %b");
 	}
 
 	static bool
@@ -444,15 +428,6 @@ private:
 	}
 
 	static bool
-	pid_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
-	{
-		return check_builtin_type(arg, ctx,
-			{BuiltinType::Kind::UInt,
-			 BuiltinType::Kind::Int},
-			"%P");
-	}
-
-	static bool
 	pointer_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
 	{
 		const Type *type = arg->getType().split().Ty;
@@ -463,25 +438,6 @@ private:
 		print_error(std::string("bad pointer argument for %p: ") +
 			arg->getType().getAsString(), arg, ctx->pci);
 		return false;
-	}
-
-	static bool
-	rlim_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
-	{
-		if (sizeof(int64_t) == sizeof(long)) {
-			return check_builtin_type(arg, ctx,
-				{BuiltinType::Kind::Long,
-				 BuiltinType::Kind::ULong},
-				"%r");
-
-		} else if (sizeof(int64_t) == sizeof(long long)) {
-			return check_builtin_type(arg, ctx,
-				{BuiltinType::Kind::LongLong,
-				 BuiltinType::Kind::ULongLong},
-				"%r");
-		}
-
-		assert(0);
 	}
 
 	static bool
@@ -532,17 +488,9 @@ private:
 	ngx_str_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
 	{
 		return check_struct_type(arg, ctx,
-			{"ngx_str_t *",
-			 "volatile ngx_str_t *"},
+			{"nxt_str_t *",
+			 "const nxt_str_t *"},
 			"%V");
-	}
-
-	static bool
-	ngx_vv_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
-	{
-		return check_struct_type(arg, ctx,
-			{"ngx_variable_value_t *"},
-			"%v");
 	}
 
 	static bool
