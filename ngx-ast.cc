@@ -138,10 +138,10 @@ private:
 	CompilerInstance *CI;
 
 	std::unordered_map<std::string, unsigned> printf_functions = {
-		{"nxt_sprintf",		2},
-		{"njs_error_fmt_new",	2},
-		{"njs_parser_error",	3},
-		{"njs_generate_syntax_error", 2},
+		{"nxt_sprintf",			2},
+		{"njs_error_fmt_new",		3},
+		{"njs_parser_lexer_error",	3},
+		{"njs_parser_node_error",	3},
 	};
 
 	std::unordered_map<char, arg_handler_t> arg_handlers = {
