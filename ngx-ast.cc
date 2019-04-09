@@ -139,6 +139,7 @@ private:
 
 	std::unordered_map<std::string, unsigned> printf_functions = {
 		{"nxt_sprintf",			2},
+		{"nxt_dprintf",			1},
 		{"njs_error_fmt_new",		3},
 		{"njs_parser_lexer_error",	3},
 		{"njs_parser_node_error",	3},
