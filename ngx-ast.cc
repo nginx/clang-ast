@@ -138,8 +138,8 @@ private:
 	CompilerInstance *CI;
 
 	std::unordered_map<std::string, unsigned> printf_functions = {
-		{"nxt_sprintf",			2},
-		{"nxt_dprintf",			1},
+		{"njs_sprintf",			2},
+		{"njs_dprintf",			1},
 		{"njs_error_fmt_new",		3},
 		{"njs_parser_lexer_error",	3},
 		{"njs_parser_node_error",	3},
@@ -489,8 +489,8 @@ private:
 	ngx_str_arg_handler(const Expr *arg, struct PrintfArgChecker *ctx)
 	{
 		return check_struct_type(arg, ctx,
-			{"nxt_str_t *",
-			 "const nxt_str_t *"},
+			{"njs_str_t *",
+			 "const njs_str_t *"},
 			"%V");
 	}
 
