@@ -141,7 +141,7 @@ private:
 		{"njs_sprintf",			2},
 		{"njs_dprintf",			1},
 		{"njs_error_fmt_new",		3},
-		{"njs_parser_lexer_error",	3},
+		{"njs_parser_lexer_error",	2},
 		{"njs_parser_node_error",	3},
 	};
 
