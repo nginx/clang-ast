@@ -93,6 +93,9 @@ public:
 		if (!arg->EvaluateAsRValue(r, *Context))
 			return false;
 
+		if (!r.Val.getLValueBase().is<const Expr *>())
+			return true;
+
 		const StringLiteral *qval = dyn_cast<StringLiteral>(
 			r.Val.getLValueBase().get<const Expr *>());
 		if (!qval)
