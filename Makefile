@@ -1,7 +1,7 @@
 
 CC =	cc
 CONFIG = llvm-config
-CFLAGS = $(shell ${CONFIG} --cflags) -std=c++11 -Wno-strict-aliasing
+CFLAGS = $(shell ${CONFIG} --cflags) -std=c++14 -Wno-strict-aliasing -fPIC
 LINK = $(CC)
 LDFLAGS = -fPIC -fvisibility-inlines-hidden -fno-common -g -shared
 
