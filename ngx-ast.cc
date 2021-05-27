@@ -196,7 +196,7 @@ private:
 			return nullptr;
 		}
 
-		return llvm::make_unique<PrintfArgChecker>(
+		return std::make_unique<PrintfArgChecker>(
 			arg_handlers.find(type)->second,
 			this->Context, this->CI);
 	}
@@ -776,7 +776,7 @@ class FindNamedClassAction : public PluginASTAction {
 protected:
 	std::unique_ptr<ASTConsumer> CreateASTConsumer(
 		CompilerInstance &CI, llvm::StringRef) override {
-		return llvm::make_unique<FindNamedClassConsumer>(CI);
+		return std::make_unique<FindNamedClassConsumer>(CI);
 	}
 	bool ParseArgs(const CompilerInstance &CI,
 		const std::vector<std::string> &args) override
