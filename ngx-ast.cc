@@ -168,27 +168,27 @@ private:
 	{
 		const char type = flags.back();
 		if (flags == "FD") {
-			return llvm::make_unique<PrintfArgChecker>(
+			return std::make_unique<PrintfArgChecker>(
 				int_arg_handler,
 				this->Context, this->CI);
 		}
 		if (flags == "FN") {
-			return llvm::make_unique<PrintfArgChecker>(
+			return std::make_unique<PrintfArgChecker>(
 				nxt_file_name_arg_handler,
 				this->Context, this->CI);
 		}
 		if (flags == "PI" || flags == "PT") {
-			return llvm::make_unique<PrintfArgChecker>(
+			return std::make_unique<PrintfArgChecker>(
 				pid_arg_handler,
 				this->Context, this->CI);
 		}
 		if (flags == "PF") {
-			return llvm::make_unique<PrintfArgChecker>(
+			return std::make_unique<PrintfArgChecker>(
 				nxt_fid_arg_handler,
 				this->Context, this->CI);
 		}
 		if (flags == "PH") {
-			return llvm::make_unique<PrintfArgChecker>(
+			return std::make_unique<PrintfArgChecker>(
 				pthread_arg_handler,
 				this->Context, this->CI);
 		}
